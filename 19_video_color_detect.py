@@ -1,0 +1,207 @@
+# import openCV library
+import cv2
+# import numpy library
+import numpy as np
+# import time library
+import time
+
+# video file path
+path = 'ball_colorful.mp4'
+# config camera id
+#camera_id = 1
+# config ip camera
+#ip_camera = 'rtsp://192.168.22.80:8080/h264_pcm.sdp'
+
+# create video capture for video file
+vcap = cv2.VideoCapture(path)
+# create video capture for webcam
+#vcap = cv2.VideoCapture(camera_id)
+# create video capture for ip camera
+#vcap = cv2.VideoCapture(ip_camera)
+
+# check camera
+if not vcap.isOpened():
+    raise Exception('Could not open video device or video file')
+
+# camera id config video size and FPS
+# Logitech c922 : width = 854, height = 480
+# Logitech c270 : width = 320, height = 240
+#vcap.set(cv2.CAP_PROP_FRAME_WIDTH, 854)
+#vcap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+# FPS : 5, 10, 15, 20, 25, 30.....
+#vcap.set(cv2.CAP_PROP_FPS, 5)
+
+# get and print video info
+video_width = vcap.get(cv2.CAP_PROP_FRAME_WIDTH)
+video_height = vcap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+video_fps = vcap.get(cv2.CAP_PROP_FPS)
+video_frame_count = vcap.get(cv2.CAP_PROP_FRAME_COUNT)
+print('Width = ' + str(video_width))
+print('Height = ' + str(video_height))
+print('FPS = ' + str(video_fps))
+print('Frame count = ' + str(video_frame_count))
+
+# variable for check FPS
+start_time = time.time()
+display_time = 2
+fc = 0
+FPS = 0
+frame_rate = 2
+prev = 0
+
+while True:
+    # capture frame
+    ret, frame = vcap.read()
+    
+    # exit can't read frame
+    if not ret:
+        break
+    
+    # calc FPS
+    fc += 1
+    TIME = time.time() - start_time
+    if (TIME) >= display_time:
+        FPS = fc / (TIME)
+        fc = 0
+        start_time = time.time()
+        FPS = int(FPS)
+
+    # display frame
+    #cv2.imshow('frame', frame)
+
+    # convert color RGB -> HSV
+    image_hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+    # rang of blue color in HSV
+    # H -> 90 -> 120
+    # S -> 117 -> 255
+    # V -> 84 -> 255
+    blue_lower_hsv = np.array([90, 117, 84])
+    blue_higher_hsv = np.array([120, 255, 255])
+
+    # rang of green color in HSV
+    # H -> 38 -> 93
+    # S -> 50 -> 255
+    # V -> 50 -> 255
+    green_lower_hsv = np.array([38, 50, 50])
+    green_higher_hsv = np.array([93, 255, 255])
+
+    # rang of yellow color in HSV
+    # H -> 18 -> 39
+    # S -> 100 -> 255
+    # V -> 180 -> 255
+    yellow_lower_hsv = np.array([18, 100, 180])
+    yellow_higher_hsv = np.array([39, 255, 255])
+
+    # rang of orange color in HSV
+    # H -> 8 -> 12
+    # S -> 170 -> 255
+    # V -> 170 -> 255
+    orange_lower_hsv = np.array([8, 170, 170])
+    orange_higher_hsv = np.array([12, 255, 255])
+
+    # rang of red color in HSV
+    # red band 1 of 2
+    # H -> 0 -> 5
+    # S -> 80 -> 170
+    # V -> 80 -> 170
+    #
+    # red band 2 of 2
+    # H -> 170 -> 180
+    # S -> 175 -> 255
+    # V -> 20 -> 255
+    red_lower_hsv_1 = np.array([0, 80, 80])
+    red_higher_hsv_1 = np.array([5, 170, 170])
+    red_lower_hsv_2 = np.array([170, 175, 20])
+    red_higher_hsv_2 = np.array([180, 255, 255])
+
+
+    # mask for blue color
+    blue_mask = cv2.inRange(image_hsv, blue_lower_hsv, blue_higher_hsv)
+
+    # mask for green color
+    green_mask = cv2.inRange(image_hsv, green_lower_hsv, green_higher_hsv)
+
+    # mask for yellow color
+    yellow_mask = cv2.inRange(image_hsv, yellow_lower_hsv, yellow_higher_hsv)
+
+    # mask for orange color
+    orange_mask = cv2.inRange(image_hsv, orange_lower_hsv, orange_higher_hsv)
+
+    # mask for red color
+    red_mask_1 = cv2.inRange(image_hsv, red_lower_hsv_1, red_higher_hsv_1)
+    red_mask_2 = cv2.inRange(image_hsv, red_lower_hsv_2, red_higher_hsv_2)
+    red_mask = red_mask_1 + red_mask_2
+
+
+    # fine contours in blue mask
+    blue_contours, _ = cv2.findContours(blue_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+    # fine contours in green mask
+    green_contours, _ = cv2.findContours(green_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+    # fine contours in yellow mask
+    yellow_contours, _ = cv2.findContours(yellow_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+    # fine contours in orange mask
+    orange_contours, _ = cv2.findContours(orange_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+    # fine contours in red mask
+    red_contours, _ = cv2.findContours(red_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+
+    # loop blue_contours draw rectangle
+    for cnt in blue_contours:
+        contour_area = cv2.contourArea(cnt)
+        if contour_area > 1000:
+            x, y, w, h = cv2.boundingRect(cnt)
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
+            cv2.putText(frame, 'Blue', (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 0, 0), 2)
+            
+    # loop green_contours draw rectangle
+    for cnt in green_contours:
+        contour_area = cv2.contourArea(cnt)
+        if contour_area > 1000:
+            x, y, w, h = cv2.boundingRect(cnt)
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            cv2.putText(frame, 'Green', (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+            
+    # loop yellow_contours draw rectangle
+    for cnt in yellow_contours:
+        contour_area = cv2.contourArea(cnt)
+        if contour_area > 1000:
+            x, y, w, h = cv2.boundingRect(cnt)
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 255), 2)
+            cv2.putText(frame, 'Yellow', (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 255), 2)
+            
+    # loop orange_contours draw rectangle
+    for cnt in orange_contours:
+        contour_area = cv2.contourArea(cnt)
+        if contour_area > 1000:
+            x, y, w, h = cv2.boundingRect(cnt)
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 165, 255), 2)
+            cv2.putText(frame, 'Orange', (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 165, 255), 2)
+            
+    # loop red_contours draw rectangle
+    for cnt in red_contours:
+        contour_area = cv2.contourArea(cnt)
+        if contour_area > 1000:
+            x, y, w, h = cv2.boundingRect(cnt)
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
+            cv2.putText(frame, 'Red', (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
+
+    # put FPS to frame
+    fps_disp = "FPS: " + str(FPS)#[:5]
+    frame = cv2.putText(frame, fps_disp, (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+    
+    # display frame
+    cv2.imshow('Video color detected', frame)
+
+    # press key 'q' for quit
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+# release video capture
+vcap.release()
+# close all window
+cv2.destroyAllWindows()
